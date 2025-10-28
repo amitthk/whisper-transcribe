@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Transcription</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Transcribe Your Audio File</h1>
+    
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="audioFile" accept=".mp3" required>
+        <input type="text" id="outputFilename" placeholder="Output filename (optional)">
+        <button type="submit">Upload & Transcribe</button>
+    </form>
+    
+    <div id="status"></div>
+    <textarea id="transcript" rows="20" cols="80" placeholder="Transcription will appear here..."></textarea>
+    
+    <script>
+        const socket = io();
+        const form = document.getElementById('uploadForm');
+        const status = document.getElementById('status');
+        const transcript = document.getElementById('transcript');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('file', document.getElementById('audioFile').files[0]);
+            formData.append('output_filename', document.getElementById('outputFilename').value);
+            
+            status.textContent = 'Uploading...';
+            transcript.value = '';
+            
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            status.textContent = result.message;
+        });
+        
+        socket.on('transcription_segment', (data) => {
+            transcript.value += data.text + '\n';
+            transcript.scrollTop = transcript.scrollHeight;
+        });
+        
+        socket.on('transcription_complete', (data) => {
+            status.textContent = data.saved_file ? 
+                `Complete! Saved to: ${data.saved_file}` : 
+                'Transcription complete!';
+        });
+        
+        socket.on('transcription_error', (data) => {
+            status.textContent = `Error: ${data.error}`;
+        });
+    </script>
+</body>
+</html>
